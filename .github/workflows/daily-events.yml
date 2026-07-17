@@ -2,24 +2,26 @@ name: Daily Event Digest
 
 on:
   schedule:
-    - cron: "30 4 * * *"   # 04:30 UTC = 07:30 Israel time (summer)
-  workflow_dispatch:         # allows manual run from the Actions tab
+    - cron: "30 4 * * *"   # 04:30 UTC = 07:30 Israel (summer)
+  workflow_dispatch:
 
 permissions:
-  contents: write            # needed to commit seen_events.json back
+  contents: write
 
 jobs:
   run-agent:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install requests beautifulsoup4
+        run: |
+          pip install requests beautifulsoup4 playwright
+          playwright install chromium --with-deps
 
       - name: Inject SMTP credentials into config
         run: |
