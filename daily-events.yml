@@ -1,5 +1,4 @@
 name: Daily Event Digest
-
 on:
   schedule:
     - cron: "30 4 * * *"   # 04:30 UTC = 07:30 Israel (summer)
