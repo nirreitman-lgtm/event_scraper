@@ -1,0 +1,50 @@
+name: Daily Event Digest
+
+on:
+  schedule:
+    - cron: "30 4 * * *"   # 04:30 UTC = 07:30 Israel time (summer)
+  workflow_dispatch:         # allows manual run from the Actions tab
+
+permissions:
+  contents: write            # needed to commit seen_events.json back
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Inject SMTP credentials into config
+        run: |
+          python - <<'EOF'
+          import json, os
+          cfg = json.load(open("config.json", encoding="utf-8"))
+          cfg["email"]["smtp_user"] = os.environ["SMTP_USER"]
+          cfg["email"]["smtp_password"] = os.environ["SMTP_PASSWORD"]
+          cfg["email"]["from"] = os.environ["SMTP_USER"]
+          cfg["email"]["to"] = [os.environ["EMAIL_TO"]]
+          json.dump(cfg, open("config.json", "w", encoding="utf-8"), ensure_ascii=False)
+          EOF
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+
+      - name: Run agent
+        run: python event_agent.py
+
+      - name: Persist dedupe state
+        run: |
+          git config user.name "event-agent-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git checkout -- config.json
+          git add seen_events.json || true
+          git diff --cached --quiet || git commit -m "Update seen events [skip ci]"
+          git push
